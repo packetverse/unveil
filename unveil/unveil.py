@@ -4,13 +4,13 @@ from .services import ident
 from rich.console import Console
 from rich.panel import Panel
 from rich.style import Style
+from rich.progress import Progress
 
-# from rich.progress import track
 from typing import Annotated, Optional
 from inspect import cleandoc
 from json import dumps
 from dns.resolver import NXDOMAIN, Timeout, NoNameservers, NoAnswer
-from socket import gaierror, gethostbyname
+# from socket import gaierror, gethostbyname
 
 import typer
 import dns.resolver
@@ -18,10 +18,15 @@ import dns.resolver
 app = typer.Typer(no_args_is_help=True)
 console = Console()
 
-# add some utilty to scrape lists from sites like
-# https://www.dnsbl.info/dnsbl-list.php
-# https://www.dnsbl.com/
+# TODO: Add custom providers option for `check` command
+# TODO: Add output option for all commands
+# TODO: Add custom proxies to use when querying since sometimes you can't do it with your own home network
+# TODO: Add custom timeout option to wait before getting a response from a server
+# TODO: Add custom resolver.lifetime option to wait before getting an answer from a server (almost the same as timeout)
+# TODO: Add scraper module to get DNSBLs from various sites and also do checks like if duplicate or not
+
 BLACKLISTS = [
+    "0-02.net",
     "zen.spamhaus.org",
     "b.barracudacentral.org",
     "bl.spamcop.net",
@@ -80,56 +85,68 @@ def check(
     bad = 0
 
     # for provider in track(BLACKLISTS, description="Querying IP information..."):
-    for provider in BLACKLISTS:
-        query = f"{reversed_ip}.{provider}"
-        try:
-            # dnspython method
-            resolver = dns.resolver.Resolver()
-            resolver.timeout = 5
-            resolver.lifetime = 5
-            answer = resolver.query(query, "A")
-            answer_txt = resolver.query(query, "TXT")
+    with Progress(console=console, transient=True) as progress:
+        task = progress.add_task("Querying proviers...", total=len(BLACKLISTS))
+        for provider in BLACKLISTS:
+            query = f"{reversed_ip}.{provider}"
+            try:
+                # dnspython method
+                resolver = dns.resolver.Resolver()
+                resolver.timeout = 5
+                resolver.lifetime = 5
+                answer = resolver.query(query, "A")
+                answer_txt = resolver.query(query, "TXT")
 
-            # socket method
-            # gethostbyname(query)
+                # socket method
+                # gethostbyname(query)
 
-            console.print(
-                f"[bold green][+] {ip} listed in {provider} ({answer[0]}) ({answer_txt[0]})[/]"
-            )
-            bad += 1
-            # console.print(f"[bold red][-] {ip} is listed [/bold red]")
-        # except gaierror:
-        #     console.print(f"[bold red][-] {ip} not listed in {provider}[/]")
-        #     good += 1
-        except NXDOMAIN:
-            good += 1
-            console.print(f"[bold red][-] {ip} not listed in {provider}[/]")
-        except Timeout:
-            console.print(
-                f"[bold yellow][.] Timeout querying {provider}"
-            ) if verbose else None
-        except NoNameservers:
-            console.print(
-                f"[bold yellow][.] No nameservers for {provider}"
-            ) if verbose else False
-        except NoAnswer:
-            console.print(
-                f"[bold yellow][.] No answer from {provider}"
-            ) if verbose else False
-        except Exception:
-            # error should not be added to list and logging should be implemented instead
-            pass
+                console.print(
+                    f"[bold green][+] {ip} listed in {provider} ({answer[0]}) ({answer_txt[0]})[/]"
+                )
+                bad += 1
+                progress.advance(task)
+                # console.print(f"[bold red][-] {ip} is listed [/bold red]")
+            # except gaierror:
+            #     console.print(f"[bold red][-] {ip} not listed in {provider}[/]")
+            #     good += 1
+            except NXDOMAIN:
+                good += 1
+                console.print(f"[bold red][-] {ip} not listed in {provider}[/]")
+                progress.advance(task)
+            except Timeout:
+                if verbose:
+                    good += 1
+                    console.print(f"[bold yellow][.] Timeout querying {provider}")
+                    progress.advance(task)
+            except NoNameservers:
+                if verbose:
+                    good += 1
+                    console.print(f"[bold yellow][.] No nameservers for {provider}")
+                    progress.advance(task)
+            except NoAnswer:
+                if verbose:
+                    good += 1
+                    console.print(f"[bold yellow][.] No answer from {provider}")
+                    progress.advance(task)
+            except Exception:
+                # error should not be added to list and logging should be implemented instead
+                progress.advance(task)
+                pass
 
     total = good + bad
-    print(f"{ip}: {bad}/{total}")
+    yellow = Style(color="yellow", bold=True)
+    formatted_text = cleandoc(f"""
+    [{yellow}][.][/] {ip}: {bad}/{total}
+    """)
+    console.print(Panel(formatted_text, title=f"[{yellow}]Results[/]"))
 
 
 @app.command()
-def validate(ip: str) -> None:
+def validate(ip: Annotated[str, typer.Argument()]) -> None:
     if _validate_ip(ip):
-        console.print(f"[green][+] {ip} is valid")
+        console.print(f"[bold green][+] {ip} is valid[/]")
     else:
-        console.print(f"[red][-] {ip} is invalid")
+        console.print(f"[bold red][-] {ip} is invalid[/]")
 
 
 @app.command()
