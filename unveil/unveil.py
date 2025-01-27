@@ -1,5 +1,7 @@
 from .utils import _validate_ip, _get_ip, _reverse_ip
 from .services import ident
+from .scraper import Scraper, DNSBLInfo, WhatIsMyIPAddress
+from .alias import AliasGroup
 
 from rich.console import Console
 from rich.panel import Panel
@@ -15,123 +17,79 @@ from dns.resolver import NXDOMAIN, Timeout, NoNameservers, NoAnswer
 import typer
 import dns.resolver
 
-app = typer.Typer(no_args_is_help=True)
+app = typer.Typer(cls=AliasGroup, no_args_is_help=True)
 console = Console()
 
 # TODO: Add custom providers option for `check` command
 # TODO: Add output option for all commands
 # TODO: Add custom proxies to use when querying since sometimes you can't do it with your own home network
-# TODO: Add custom timeout option to wait before getting a response from a server
-# TODO: Add custom resolver.lifetime option to wait before getting an answer from a server (almost the same as timeout)
 # TODO: Add scraper module to get DNSBLs from various sites and also do checks like if duplicate or not
 
-BLACKLISTS = [
-    "0-02.net",
-    "zen.spamhaus.org",
-    "b.barracudacentral.org",
-    "bl.spamcop.net",
-    "dnsbl.sorbs.net",
-    "dnsbl-1.uceprotect.net",
-    "dnsbl-2.uceprotect.net",
-    "dnsbl-3.uceprotect.net",
-    "cbl.abuseat.org",
-    "dnsbl.dronebl.org",
-    "psbl.surriel.com",
-    "all.s5h.net",
-    "combined.abuse.ch",
-    "drone.abuse.ch",
-    "ips.backscatterer.org",
-    "noptr.spamrats.com",
-    "relays.nether.net",
-    "spam.dnsbl.anonmails.de",
-    "spamrbl.imp.ch",
-    "ubl.unsubscore.com",
-    "z.mailspike.net",
-    "blacklist.woody.ch",
-    "db.wpbl.info",
-    "duinv.aupads.org",
-    "ix.dnsbl.manitu.net",
-    "pbl.spamhaus.org",
-    "orvedb.aupads.org",
-    "rbl.0spam.org",
-    "singular.ttk.pte.hu",
-    "spam.spamrats.com",
-    "spamsources.fabel.dk",
-    "virus.rbl.jp",
-    "bl.0spam.org",
-    "bogons.cymru.com",
-    "dyna.spamrats.com",
-    "korea.services.net",
-    "proxy.bl.gweep.ca",
-    "relays.bl.gweep.ca",
-    "spam.abuse.ch",
-    "spambot.bls.digibase.ca",
-    "ubl.lashback.com",
-    "wormrbl.imp.ch",
-]
+BLACKLISTS = Scraper([DNSBLInfo, WhatIsMyIPAddress]).fetch()
 
 
-# This shouldn't actually print current ip another function should be made for that but
-# it should definitely be remade and it should query a lot of blacklist websites and
-# return results about how many and which sites it's blacklisted on
 @app.command()
 def check(
     ip: Annotated[Optional[str], typer.Argument(default_factory=_get_ip)],
-    verbose: Annotated[Optional[bool], typer.Option(help="Shows more info")] = False,
+    verbose: Annotated[
+        Optional[bool], typer.Option("--verbose", "-v", help="Shows more info")
+    ] = False,
+    timeout: Annotated[
+        Optional[float], typer.Option("--timeout", "-t", help="Timeout duration")
+    ] = 5,
+    lifetime: Annotated[
+        Optional[float], typer.Option("--lifetime", "-l", help="Lifetime duration")
+    ] = 5,
 ) -> None:
-    # results = {}
     reversed_ip = _reverse_ip(ip)
     good = 0
     bad = 0
 
     # for provider in track(BLACKLISTS, description="Querying IP information..."):
     with Progress(console=console, transient=True) as progress:
-        task = progress.add_task("Querying proviers...", total=len(BLACKLISTS))
+        task = progress.add_task("Querying providers...", total=len(BLACKLISTS))
         for provider in BLACKLISTS:
             query = f"{reversed_ip}.{provider}"
             try:
                 # dnspython method
                 resolver = dns.resolver.Resolver()
-                resolver.timeout = 5
-                resolver.lifetime = 5
+                resolver.timeout = timeout
+                resolver.lifetime = lifetime
                 answer = resolver.query(query, "A")
                 answer_txt = resolver.query(query, "TXT")
 
                 # socket method
                 # gethostbyname(query)
 
-                console.print(
-                    f"[bold green][+] {ip} listed in {provider} ({answer[0]}) ({answer_txt[0]})[/]"
-                )
+                if verbose:
+                    console.print(
+                        f"[bold green][+] {ip} listed in {provider} ({answer[0]}) ({answer_txt[0]})"
+                    )
+                else:
+                    console.print(f"[bold green][+] {ip} listed in {provider}")
                 bad += 1
-                progress.advance(task)
-                # console.print(f"[bold red][-] {ip} is listed [/bold red]")
             # except gaierror:
             #     console.print(f"[bold red][-] {ip} not listed in {provider}[/]")
             #     good += 1
             except NXDOMAIN:
                 good += 1
                 console.print(f"[bold red][-] {ip} not listed in {provider}[/]")
-                progress.advance(task)
             except Timeout:
                 if verbose:
                     good += 1
                     console.print(f"[bold yellow][.] Timeout querying {provider}")
-                    progress.advance(task)
             except NoNameservers:
                 if verbose:
                     good += 1
                     console.print(f"[bold yellow][.] No nameservers for {provider}")
-                    progress.advance(task)
             except NoAnswer:
                 if verbose:
                     good += 1
                     console.print(f"[bold yellow][.] No answer from {provider}")
-                    progress.advance(task)
             except Exception:
-                # error should not be added to list and logging should be implemented instead
-                progress.advance(task)
                 pass
+
+            progress.advance(task)
 
     total = good + bad
     yellow = Style(color="yellow", bold=True)
@@ -159,7 +117,9 @@ def ip(
     ] = False,
     verbose: Annotated[Optional[bool], typer.Option(help="Displays more info")] = False,
 ) -> None:
-    data = ident.ident()
+    if verbose:
+        data = ident.ident()
+
     if raw:
         console.print(_get_ip())
     elif json:
@@ -184,3 +144,28 @@ def ip(
         """)
 
         console.print(Panel(formatted_data, title="[bold blue]IP information[/]"))
+
+
+@app.command(
+    "blacklists, providers",
+    help="Get all providers the scraper modules fetches from the web",
+)
+def blacklists(
+    limit: Annotated[
+        Optional[int],
+        typer.Option(
+            "--limit",
+            "-l",
+            help="Limit how many providers to get from all scraper modules",
+        ),
+    ] = 0,
+) -> None:
+    if limit > 0:
+        count = 0
+        for blacklist in BLACKLISTS:
+            print(blacklist)
+            count += 1
+            if count == limit:
+                break
+    else:
+        console.print(Panel("\n".join(BLACKLISTS), title="[bold blue]Providers[/]"))
