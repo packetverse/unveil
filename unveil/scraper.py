@@ -3,6 +3,10 @@ from lxml import html
 from typing import List
 
 
+# TODO: Module should be remade so that it could also be used to fetch most blacklisted IPs with a resource like:
+# https://github.com/stamparm/ipsum
+
+
 # Helper functions
 def _deduplicate_blacklist(blacklists: List[str]) -> List[str]:
     return list(set(blacklists))
@@ -41,6 +45,11 @@ class WhatIsMyIPAddress:
         except Exception:
             # add error handling/logging here as well in future
             return []
+
+
+class BlacklistMaster:
+    # https://www.blacklistmaster.com/blacklists
+    ...
 
 
 class Scraper:

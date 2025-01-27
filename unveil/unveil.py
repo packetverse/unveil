@@ -26,6 +26,24 @@ app = typer.Typer(
 state = {"verbose": False}
 console = Console()
 
+BANNER = """
+[bold red]███████████████████████████████████████████████████████████████████[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]█▌[/]  ███    █▄  ███▄▄▄▄    ▄█    █▄     ▄████████  ▄█   ▄█        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███▀▀▀██▄ ███    ███   ███    ███ ███  ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███   ███    █▀  ███▌ ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███  ▄███▄▄▄     ███▌ ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███ ▀▀███▀▀▀     ███▌ ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███   ███    █▄  ███  ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███   ███    ███ ███  ███▌    ▄  [bold red]▐█[/]
+[bold red]█▌[/]  ████████▀   ▀█   █▀   ▀██████▀    ██████████ █▀   █████▄▄██  [bold red]▐█[/]
+[bold red]█▌[/]                                                    ▀          [bold red]▐█[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]███████████████████████████████████████████████████████████████████[/]
+"""
+
 # TODO: Add custom providers option for `check` command
 # TODO: Add output option for all commands
 # TODO: Add custom proxies to use when querying since sometimes you can't do it with your own home network
@@ -37,7 +55,13 @@ console = Console()
 
 
 @app.callback()
-def main(verbose: bool = False):
+def main(
+    verbose: Annotated[
+        Optional[bool],
+        typer.Option("--verbose", "-v", help="Enables verbose output for all commands"),
+    ] = False,
+):
+    console.print(BANNER)
     if verbose:
         state["verbose"] = True
 
@@ -47,9 +71,6 @@ def main(verbose: bool = False):
 @app.command()
 def check(
     ip: Annotated[Optional[str], typer.Argument(default_factory=_get_ip)],
-    # verbose: Annotated[
-    #     Optional[bool], typer.Option("--verbose", "-v", help="Shows more info")
-    # ] = False,
     timeout: Annotated[
         Optional[float], typer.Option("--timeout", "-t", help="Timeout duration")
     ] = 5,
@@ -59,6 +80,10 @@ def check(
     blacklists: Annotated[
         Optional[str],
         typer.Option(
+            "--blacklists",
+            "--providers",
+            "-b",
+            "-p",
             help="Path to custom blacklists file",
         ),
     ] = None,
@@ -68,8 +93,9 @@ def check(
     bad = 0
 
     if blacklists is not None:
-        # add logic to extract blacklists and so on from file
-        print("Custom blacklists file provided")
+        print(f"Custom blacklists file provided: {blacklists}")
+        with open(blacklists, "r") as f:
+            blacklists = [line.strip() for line in f.readlines()]
     else:
         blacklists = Scraper([DNSBLInfo, WhatIsMyIPAddress]).fetch()
 
@@ -138,18 +164,19 @@ def validate(ip: Annotated[str, typer.Argument()]) -> None:
 
 
 # add different sources to fetch public ip from such as the scraper module
+# make different panels and title of each panel would be where it fetched it's information
 @app.command(help="Fetch your Public IP")
 def ip(
     raw: Annotated[
-        Optional[bool], typer.Option(help="Returns your Public IP and nothing more")
+        Optional[bool],
+        typer.Option("--raw", "-r", help="Returns your Public IP and nothing more"),
     ] = False,
     json: Annotated[
-        Optional[bool], typer.Option(help="Returns the JSON pretty printed")
+        Optional[bool],
+        typer.Option("--json", "-j", help="Returns the JSON pretty printed"),
     ] = False,
-    verbose: Annotated[Optional[bool], typer.Option(help="Displays more info")] = False,
 ) -> None:
-    if verbose:
-        data = ident.ident()
+    data = ident.ident()
 
     if raw:
         console.print(_get_ip())
@@ -174,7 +201,7 @@ def ip(
         [{q}][?][/] Timezone: {data["tz"]}
         """)
 
-        console.print(Panel(formatted_data, title="[bold blue]IP information[/]"))
+        console.print(Panel.fit(formatted_data, title="[bold blue]Ident[/]"))
 
 
 # add logic to output the providers to a file
