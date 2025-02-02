@@ -1,7 +1,7 @@
 from .utils import _validate_ip, _get_ip, _reverse_ip
-from .services import ident
 from .scraper import Scraper, DNSBLInfo, WhatIsMyIPAddress
 from .alias import AliasGroup
+from .ip import IPv4, IPFetcher
 
 from rich.console import Console
 from rich.panel import Panel
@@ -14,6 +14,7 @@ from json import dumps
 from dns.resolver import NXDOMAIN, Timeout, NoNameservers, NoAnswer
 from pathlib import Path
 from itertools import islice
+from pydantic import ValidationError
 
 import typer
 import dns.resolver
@@ -23,7 +24,7 @@ app = typer.Typer(
     no_args_is_help=True,
     context_settings={"help_option_names": ["--help", "-h"]},
 )
-state = {"verbose": False}
+state = {"verbose": False, "output": None}
 console = Console()
 
 BANNER = """
@@ -54,16 +55,24 @@ BANNER = """
 # BLACKLISTS = Scraper([DNSBLInfo, WhatIsMyIPAddress]).fetch()
 
 
+# TODO: Add support for multiple output formats
 @app.callback()
 def main(
     verbose: Annotated[
         Optional[bool],
         typer.Option("--verbose", "-v", help="Enables verbose output for all commands"),
     ] = False,
+    output: Annotated[
+        Optional[str],
+        typer.Option("--output", "-o", help="Output contents to a text file"),
+    ] = None,
 ):
     console.print(BANNER)
     if verbose:
         state["verbose"] = True
+
+    if output:
+        state["output"] = output
 
 
 # This command always assumes an IP is IPv4 we should add some logic to check and verify if IPv4 or IPv6
@@ -176,38 +185,51 @@ def ip(
         typer.Option("--json", "-j", help="Returns the JSON pretty printed"),
     ] = False,
 ) -> None:
-    data = ident.ident()
+    fetcher = IPFetcher()
+
+    try:
+        data = fetcher.fetch_from_all_apis()
+    except ValidationError as e:
+        console.print(f"[bold red]Validation Error:[/] {e}")
+        return
+    except Exception as e:
+        console.print(f"[bold red]Error:[/] {e}")
+        return
 
     if raw:
-        console.print(_get_ip())
+        raw_ip = list(data.values())[0].ip if data else "No IP found"
+        console.print(raw_ip)
+        return
     elif json:
         formatted_data = dumps(data, indent=4)
         console.print(Panel(formatted_data, title="[bold green]JSON[/]"))
-    else:
+        return
+
+    for api_name, ip_info in data.items():
         q = Style(color="blue", bold=True)
         formatted_data = cleandoc(f"""
-        [{q}][?][/] IP address: {data["ip"]}
-        [{q}][?][/] ASO: {data["aso"]}
-        [{q}][?][/] ASN: {data["asn"]}
-        [{q}][?][/] Continent: {data["continent"]}
-        [{q}][?][/] Country Code: {data["cc"]}
-        [{q}][?][/] Country: {data["country"]}
-        [{q}][?][/] City: {data["city"]}
-        [{q}][?][/] Postal/ZIP code: {data["postal"]}
+        [{q}][?][/] IP address: {ip_info.ip}
+        [{q}][?][/] ASO: {ip_info.aso}
+        [{q}][?][/] ASN: {ip_info.asn}
+        [{q}][?][/] Continent: {ip_info.continent}
+        [{q}][?][/] Country Code: {ip_info.cc}
+        [{q}][?][/] Country: {ip_info.country}
+        [{q}][?][/] City: {ip_info.city}
+        [{q}][?][/] Postal/ZIP code: {ip_info.postal}
 
         [{q}][?][/] Geolocation:
-        [{q}][?][/] Latitude: {data["latitude"]}
-        [{q}][?][/] Longitude: {data["longitude"]}
-        [{q}][?][/] Timezone: {data["tz"]}
+        [{q}][?][/] Latitude: {ip_info.latitude}
+        [{q}][?][/] Longitude: {ip_info.longitude}
+        [{q}][?][/] Timezone: {ip_info.tz}
         """)
 
-        console.print(Panel.fit(formatted_data, title="[bold blue]Ident[/]"))
+        console.print(Panel.fit(formatted_data, title=f"[bold blue]{api_name}[/]"))
 
 
 # add logic to output the providers to a file
 @app.command(
     "blacklists, providers",
-    help="Get all providers the scraper modules fetches from the web",
+    help="Get all provider-s the scraper modules fetches from the web",
 )
 def blacklists(
     limit: Annotated[
@@ -218,15 +240,11 @@ def blacklists(
             help="Limit how many providers to get from all scraper modules",
         ),
     ] = 0,
-    output: Annotated[
-        Optional[str],
-        typer.Option("--output", "-o", help="Outputs all scraped blacklists to a file"),
-    ] = None,
 ) -> None:
     blacklists = Scraper([DNSBLInfo, WhatIsMyIPAddress]).fetch()
 
-    if output:
-        output_path = Path(output)
+    if state["output"]:
+        output_path = Path(state["output"])
         mode = "a" if output_path.exists() else "w"
 
         with open(output_path, mode) as f:

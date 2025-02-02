@@ -11,7 +11,6 @@ from typing import List
 def _deduplicate_blacklist(blacklists: List[str]) -> List[str]:
     return list(set(blacklists))
 
-
 class DNSBLInfo:
     def _fetch(self) -> List:
         try:

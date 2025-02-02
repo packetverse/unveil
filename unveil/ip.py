@@ -9,28 +9,83 @@
 # https://ip-api.com/ - no auth - average 150ms response - 45 requests per minute
 # https://ipapi.co/ - no auth - average 200ms response - 30k requests per month / up-to 100 a day
 
-from re import match
+from requests import get
+from pydantic.dataclasses import dataclass
+from typing import Optional, Dict, List
 
-# This class will mostly be used for general IP adresses and formatting and so on
 
-
+@dataclass
 class IPv4:
-    def __init__(
-        self,
-        ip,
-        country,
-        cc,
-    ):
-        self.ip = ip
-        self.country = country
-        self.cc = cc
-
-    def _validate_ip(self, ip: str) -> bool:
-        return (
-            True if match(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$", ip) else False
-        )
-
-    def _format_json(self) -> None: ...
+    ip: str
+    aso: Optional[str] = None
+    asn: Optional[int] = None
+    continent: Optional[str] = None
+    cc: Optional[str] = None
+    country: Optional[str] = None
+    city: Optional[str] = None
+    postal: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    tz: Optional[str] = None
 
 
-class IPv6: ...
+class IPFetcher:
+    def __init__(self):
+        self.apis = {
+            "Ident": "https://ident.me/json",
+            "Ipify": "https://api.ipify.org/?format=json",
+        }
+
+    def fetch_from_all_apis(self) -> Dict[str, IPv4]:
+        ip_data = {}
+
+        for name, api_url in self.apis.items():
+            try:
+                ip_info = fetch_ipv4_info(api_url)
+                ip_data[name] = ip_info
+            except Exception as e:
+                print(f"Error fetching data from {api_url}: {e}")
+
+        return ip_data
+
+
+# add some logic to fetch from all services
+def fetch_ipv4_info(api_url: str) -> IPv4:
+    response = get(api_url)
+    response.raise_for_status()
+    data = response.json()
+
+    ip_info = IPv4(**data)
+    return ip_info
+
+
+def ident() -> Dict:
+    return get("https://ident.me/json").json()
+
+
+def icanhazip() -> str:
+    return get("https://icanhazip.com").text
+
+
+def ipify() -> dict:
+    return get("https://api.ipify.org/?format=json").json()
+
+
+def ipinfo() -> str:
+    return get("https://ipinfo.io/ip").text
+
+
+def myip() -> dict:
+    return get("https://api.myip.com").json()
+
+
+def country_is() -> dict:
+    return get("https://api.country.is").json()
+
+
+def geojs() -> dict:
+    return get("https://get.geojs.io/v1/ip/geo.json").json()
+
+
+def fetch() -> list[dict]:
+    return [ident(), icanhazip()]
