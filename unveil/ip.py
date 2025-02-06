@@ -11,7 +11,7 @@
 
 from requests import get
 from pydantic.dataclasses import dataclass
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 
 @dataclass
@@ -57,35 +57,3 @@ def fetch_ipv4_info(api_url: str) -> IPv4:
 
     ip_info = IPv4(**data)
     return ip_info
-
-
-def ident() -> Dict:
-    return get("https://ident.me/json").json()
-
-
-def icanhazip() -> str:
-    return get("https://icanhazip.com").text
-
-
-def ipify() -> dict:
-    return get("https://api.ipify.org/?format=json").json()
-
-
-def ipinfo() -> str:
-    return get("https://ipinfo.io/ip").text
-
-
-def myip() -> dict:
-    return get("https://api.myip.com").json()
-
-
-def country_is() -> dict:
-    return get("https://api.country.is").json()
-
-
-def geojs() -> dict:
-    return get("https://get.geojs.io/v1/ip/geo.json").json()
-
-
-def fetch() -> list[dict]:
-    return [ident(), icanhazip()]
