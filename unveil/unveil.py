@@ -22,13 +22,12 @@ import typer
 import dns.resolver
 import time
 
-log = Logger()
-
 app = typer.Typer(
     cls=AliasGroup,
     no_args_is_help=True,
     context_settings={"help_option_names": ["--help", "-h"]},
 )
+
 console = Console()
 
 BANNER = """
@@ -50,48 +49,87 @@ BANNER = """
 """
 
 
+def vprint(console: Console, message: str) -> None:
+    if config.verbose:
+        console.print(message)
+
+
 # find a better way to log and verbosity doesnt mean display logs really, means just display more detailed info
 # this definitely needs some working on so it can be implemented for each function
 @app.callback()
 def main(
     ctx: typer.Context,
+    log_path: Annotated[
+        Optional[str],
+        typer.Option(
+            "--log-path",
+            "-l",
+            help="Specify custom path for logs. Default is ~/.unveil",
+            show_default=False,
+            metavar="PATH",
+        ),
+    ] = None,
     verbose: Annotated[
         Optional[bool],
-        typer.Option("--verbose", "-v", help="Enables verbose output for all commands"),
+        typer.Option(
+            "--verbose",
+            "-v",
+            help="Enables verbose output for all commands",
+        ),
     ] = False,
     output: Annotated[
         Optional[str],
-        typer.Option("--output", "-o", help="Output contents to a text file"),
+        typer.Option(
+            "--output",
+            "-o",
+            help="Output contents to a text file",
+            show_default=False,
+            metavar="PATH",
+        ),
     ] = None,
     banner: Annotated[
         Optional[bool],
         typer.Option(
             "--banner",
             "-b",
-            help="Prints ascii art if specified to avoid cluttering terminal",
+            help="Prints ASCII art if specified to avoid cluttering terminal",
         ),
     ] = False,
 ):
+    global log
+    log = Logger(log_path)
+
+    log.info(f"Command invoked: {ctx.invoked_subcommand}")
+    flags = "Flags specified:"
+
     if verbose:
         config.verbose = True
-        log.info("Verbose flag specified")
-        log.info(f"Command invoked: {ctx.invoked_subcommand}")
+        flags += "\n--verbose"
 
     if output:
         config.output = output
-        log.info("Output flag specified")
-        log.info(f"Output will be saved to: {output}")
+        flags += f"\n--output={output}"
 
     if banner:
         console.print(BANNER)
-        log.info("Banner flag specified")
+        flags += "\n--banner"
+
+    log.info(flags)
 
 
 # This command always assumes an IP is IPv4 we should add some logic to check and verify if IPv4 or IPv6
 # and then use according blacklists that support IPv6 and so on
 @app.command()
 def check(
-    ip: Annotated[Optional[str], typer.Argument(default_factory=_get_ip)],
+    ip: Annotated[
+        Optional[str],
+        typer.Argument(
+            metavar="TEXT",
+            show_default=False,
+            default_factory=_get_ip,
+            help="If command is ran without this argument it will check your own Public IP to see if it's blacklisted",
+        ),
+    ],
     timeout: Annotated[
         Optional[float], typer.Option("--timeout", "-t", help="Timeout duration")
     ] = 5,
@@ -109,6 +147,9 @@ def check(
         ),
     ] = None,
 ) -> None:
+    """
+    Checks to see if one or multiple IP addresses are blacklisted and allows for a custom text file with blacklists/providers to check through
+    """
     reversed_ip = _reverse_ip(ip)
     good = 0
     bad = 0
@@ -240,6 +281,7 @@ def ip(
     end_time = time.time()
     total_time = end_time - start_time
     num_apis = len(data)
+
     console.print(
         Panel(
             f"[bold yellow][.][/] Fetched data from {num_apis} APIs in {total_time:.2f} seconds.",
@@ -252,7 +294,7 @@ def ip(
 # add logic to output the providers to a file
 @app.command(
     "blacklists, providers",
-    help="Get all provider-s the scraper modules fetches from the web",
+    help="Get all providers the scraper modules fetches from the web",
 )
 def blacklists(
     limit: Annotated[
