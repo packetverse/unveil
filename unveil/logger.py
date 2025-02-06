@@ -1,40 +1,44 @@
-from rich.logging import RichHandler
-from unveil import config
+from datetime import datetime
+from logging.handlers import RotatingFileHandler
 
+import os
 import logging
 
 
-class Logger:
-    def __init__(self) -> None:
-        self.logger = logging.getLogger("rich")
-        self.logger.setLevel(logging.DEBUG)
+class Logger(logging.Logger):
+    def __init__(self, log_dir: str) -> None:
+        self.log_dir = log_dir or os.path.expanduser("~/.unveil")
 
-        self.file_handler = logging.FileHandler("unveil.log")
-        self.file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-        )
-        self.logger.addHandler(self.file_handler)
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.log_file = f"unveil_{timestamp}.log"
 
-        self.rich_handler = None
-        self.update_stream_handler()
+        os.makedirs(self.log_dir, exist_ok=True)
+        self.log_path = os.path.join(self.log_dir, self.log_file)
+        log_level = logging.DEBUG
 
-    def update_stream_handler(self) -> None:
-        if config.verbose:
-            if not self.rich_handler:
-                self.rich_handler = RichHandler()
-                self.rich_handler.setFormatter(
-                    logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-                )
-                self.logger.addHandler(self.rich_handler)
-        else:
-            if self.rich_handler:
-                self.logger.removeHandler(self.rich_handler)
-                self.rich_handler = None
+        self.logger = logging.getLogger("unveil")
+        self.logger.setLevel(log_level)
 
-    def info(self, message) -> None:
-        self.update_stream_handler()
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        file_handler = RotatingFileHandler(self.log_path, maxBytes=1e6, backupCount=5)
+        file_handler.setFormatter(formatter)
+
+        self.logger.addHandler(file_handler)
+
+    def info(self, message: str) -> None:
         self.logger.info(message)
 
-    def error(self, message) -> None:
-        self.update_stream_handler()
+    def debug(self, message: str) -> None:
+        self.logger.debug(message)
+
+    def warning(self, message: str) -> None:
+        self.logger.warning(message)
+
+    def error(self, message: str) -> None:
         self.logger.error(message)
+
+    def critical(self, message: str) -> None:
+        self.logger.critical(message)
+
+    def exception(self, message: str) -> None:
+        self.logger.exception(message)
