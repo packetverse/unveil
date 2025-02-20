@@ -1,10 +1,25 @@
-verbose = False
-output = None
+banner = """
+[bold red]███████████████████████████████████████████████████████████████████[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]█▌[/]  ███    █▄  ███▄▄▄▄    ▄█    █▄     ▄████████  ▄█   ▄█        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███▀▀▀██▄ ███    ███   ███    ███ ███  ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███   ███    █▀  ███▌ ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███  ▄███▄▄▄     ███▌ ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███ ▀▀███▀▀▀     ███▌ ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███   ███    █▄  ███  ███        [bold red]▐█[/]
+[bold red]█▌[/]  ███    ███ ███   ███ ███    ███   ███    ███ ███  ███▌    ▄  [bold red]▐█[/]
+[bold red]█▌[/]  ████████▀   ▀█   █▀   ▀██████▀    ██████████ █▀   █████▄▄██  [bold red]▐█[/]
+[bold red]█▌[/]                                                    ▀          [bold red]▐█[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]█▌[/]                                                               [bold red]▐█[/]
+[bold red]███████████████████████████████████████████████████████████████████[/]
+"""
 
 field_aliases = {
     "ip": "IP address",
     "aso": "ASO",
-    "ASN": "ASN",
+    "asn": "ASN",
     "continent": "Continent",
     "cc": "Country code",
     "country": "Country",
@@ -13,4 +28,5 @@ field_aliases = {
     "latitude": "Latitude",
     "longitude": "Longitude",
     "tz": "Timezone",
+    "region": "Region/State",
 }

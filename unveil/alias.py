@@ -1,5 +1,6 @@
-import typer
 import re
+
+import typer
 
 
 class AliasGroup(typer.core.TyperGroup):

@@ -9,9 +9,11 @@
 # https://ip-api.com/ - no auth - average 150ms response - 45 requests per minute
 # https://ipapi.co/ - no auth - average 200ms response - 30k requests per month / up-to 100 a day
 
-from requests import get
+from typing import Dict, Optional
+
+from pydantic import Field, model_validator
 from pydantic.dataclasses import dataclass
-from typing import Optional, Dict
+from requests import get
 
 
 @dataclass
@@ -20,13 +22,30 @@ class IPv4:
     aso: Optional[str] = None
     asn: Optional[int] = None
     continent: Optional[str] = None
-    cc: Optional[str] = None
+    cc: Optional[str] = Field(None, serialization_alias="country_code")
     country: Optional[str] = None
     city: Optional[str] = None
     postal: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
-    tz: Optional[str] = None
+    timezone: Optional[str] = Field(None, serialization_alias="tz")
+    loc: Optional[str] = None
+    region: Optional[str] = None
+
+    @model_validator(mode="after")
+    def parse_location(self):
+        try:
+            loc = self.loc
+            if "," in loc:
+                lat, lon = loc.split(",")
+                self.latitude = lat
+                self.longitude = lon
+                del self.loc
+            return self
+        except Exception:
+            # should be logged implement later
+            # print(f"Error: {e}")
+            pass
 
 
 class IPFetcher:
@@ -34,6 +53,12 @@ class IPFetcher:
         self.apis = {
             "Ident": "https://ident.me/json",
             "Ipify": "https://api.ipify.org/?format=json",
+            "icanhazip": "https://icanhazip.com",
+            "IPinfo": "https://ipinfo.io/json",
+            "Country": "https://api.country.is",
+            "GeoJS": "https://get.geojs.io/v1/ip/geo.json",
+            "ipapi": "https://ipapi.co/json",
+            # "ip-api": "http://ip-api.com/json", # looks like they require api key now
         }
 
     def fetch_from_all_apis(self) -> Dict[str, IPv4]:
@@ -53,7 +78,21 @@ class IPFetcher:
 def fetch_ipv4_info(api_url: str) -> IPv4:
     response = get(api_url)
     response.raise_for_status()
-    data = response.json()
 
-    ip_info = IPv4(**data)
-    return ip_info
+    content_type = response.headers.get("Content-Type", "")
+
+    if "application/json" in content_type:
+        data = response.json()
+    else:
+        data = {"ip": response.text.strip()}
+
+    # key_mapping = {"country_code": "cc", "timezone": "tz"}
+
+    # normalized_data = {}
+    # for key, value in data.items():
+    #     mapped_key = key_mapping.get(key, key)
+    #     normalized_data[mapped_key] = value
+
+    # ip_info = IPv4(**normalized_data)
+    # print(ip_info)
+    return IPv4(**data)

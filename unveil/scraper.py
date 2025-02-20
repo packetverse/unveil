@@ -1,7 +1,7 @@
-from requests import get
-from lxml import html
 from typing import List
 
+from lxml import html
+from requests import get
 
 # TODO: Module should be remade so that it could also be used to fetch most blacklisted IPs with a resource like:
 # https://github.com/stamparm/ipsum
@@ -10,6 +10,7 @@ from typing import List
 # Helper functions
 def _deduplicate_blacklist(blacklists: List[str]) -> List[str]:
     return list(set(blacklists))
+
 
 class DNSBLInfo:
     def _fetch(self) -> List:

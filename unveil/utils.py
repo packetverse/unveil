@@ -1,4 +1,5 @@
 from re import match
+
 from requests import get
 
 # Make functions for checking validating IPv6 aswell and identifying

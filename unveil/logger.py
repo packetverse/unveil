@@ -1,8 +1,7 @@
+import logging
+import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
-
-import os
-import logging
 
 
 class Logger(logging.Logger):
