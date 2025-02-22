@@ -1,3 +1,3 @@
 from .unveil import app
 
-app()
+app(prog_name="unveil")
