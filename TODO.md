@@ -2,12 +2,12 @@
 
 - [ ] Add option to check if a blacklist/provider is online and working
 - [ ] Add support for multiple output formats
-- [ ] Add threading to allow for faster scans/requests
+- [ ] Add threading to allow for faster scans/requests (async would also work)
 - [ ] In `ip` command allow for raw which just prints out the raw json response nicely
-- [ ] Add validation for IPv6 and for recogninzing different type of IPs e.g. APIPA address, private address, and so on.
 - [ ] Write tests together with pytest library
 
 # In progress
+- [ ] Add validation for IPv6 and for recogninzing different type of IPs e.g. APIPA address, private address, and so on.
 
 # Done
 

@@ -9,10 +9,11 @@ from unveil.alias import AliasGroup
 
 from unveil.logger import Logger
 
-from unveil.commands.check import app as check_app
-from unveil.commands.validate import app as validate_app
-from unveil.commands.ip import app as ip_app
 from unveil.commands.blacklists import app as blacklists_app
+from unveil.commands.check import app as check_app
+from unveil.commands.ip import app as ip_app
+from unveil.commands.tor import app as tor_app
+from unveil.commands.validate import app as validate_app
 
 app = typer.Typer(
     cls=AliasGroup,
@@ -20,10 +21,11 @@ app = typer.Typer(
     context_settings={"help_option_names": ["--help", "-h"]},
 )
 
-app.add_typer(check_app)
-app.add_typer(validate_app)
-app.add_typer(ip_app)
 app.add_typer(blacklists_app)
+app.add_typer(check_app)
+app.add_typer(ip_app)
+app.add_typer(tor_app)
+app.add_typer(validate_app)
 
 console = Console()
 
