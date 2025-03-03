@@ -11,7 +11,7 @@ from rich.style import Style
 
 from unveil.logger import Logger
 from unveil.scraper import DNSBLInfo, Scraper, WhatIsMyIPAddress
-from unveil.utils import _get_ip, _reverse_ip
+from unveil.utils.ip import _get_ip, _reverse_ip
 
 app = typer.Typer()
 
@@ -25,8 +25,8 @@ def check(
         Optional[str],
         typer.Argument(
             metavar="TEXT",
-            show_default=False,
-            default_factory=_get_ip,
+            show_default=True,
+            default_factory=_get_ip(),
             help="If command is ran without supplying argument it will check your own public IP to see if it's blacklisted",
         ),
     ],
