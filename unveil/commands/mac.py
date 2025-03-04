@@ -22,9 +22,19 @@ app = typer.Typer()
 
 
 @app.command()
-def list(ctx: typer.Context) -> None:
+def list(
+    ctx: typer.Context,
+    color: Annotated[
+        Optional[bool],
+        typer.Option(help="Control the use of color in output"),
+    ] = True,
+) -> None:
     """Returns a list of all MAC addresses found on the system"""
-    console: Console = ctx.obj["CONSOLE"]
+    if not color:
+        console = Console(color_system=None)
+    else:
+        console = Console()
+
     addresses = _get_macs()
 
     for address in addresses:
