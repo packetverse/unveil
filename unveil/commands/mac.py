@@ -1,25 +1,34 @@
-import typer
+from typing import Annotated, Optional
 
+import typer
 from rich.console import Console
 from rich.style import Style
-
-from typing import Annotated, Optional
 
 # from unveil.logger import Logger
 from unveil.utils.io import _download_file
 from unveil.utils.mac import (
-    _normalize_mac,
-    _load_csv,
-    _get_macs,
-    _get_country_code,
-    _is_private_vendor,
-    _get_block_size,
-    _format_block_size,
-    _get_mac_range,
     _classify_mac,
+    _format_block_size,
+    _get_block_size,
+    _get_country_code,
+    _get_mac_range,
+    _get_macs,
+    _is_private_vendor,
+    _load_csv,
+    _normalize_mac,
 )
 
 app = typer.Typer()
+
+
+@app.command()
+def list(ctx: typer.Context) -> None:
+    """Returns a list of all MAC addresses found on the system"""
+    console: Console = ctx.obj["CONSOLE"]
+    addresses = _get_macs()
+
+    for address in addresses:
+        console.print(address)
 
 
 @app.command()

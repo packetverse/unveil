@@ -1,20 +1,17 @@
 from typing import Annotated, Optional
 
 import typer
-
 from rich.console import Console
 
 from unveil import config
 from unveil.alias import AliasGroup
-
-from unveil.logger import Logger
-
 from unveil.commands.blacklists import app as blacklists_app
 from unveil.commands.check import app as check_app
 from unveil.commands.ip import app as ip_app
 from unveil.commands.mac import app as mac_app
 from unveil.commands.tor import app as tor_app
 from unveil.commands.validate import app as validate_app
+from unveil.logger import Logger
 
 app = typer.Typer(
     cls=AliasGroup,
@@ -25,7 +22,7 @@ app = typer.Typer(
 app.add_typer(check_app)
 app.add_typer(validate_app)
 app.add_typer(ip_app)
-app.add_typer(mac_app)
+app.add_typer(mac_app, name="mac", no_args_is_help=True)
 app.add_typer(tor_app)
 app.add_typer(blacklists_app)
 
