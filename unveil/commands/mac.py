@@ -23,7 +23,6 @@ app = typer.Typer()
 
 @app.command()
 def list(
-    ctx: typer.Context,
     color: Annotated[
         Optional[bool],
         typer.Option(help="Control the use of color in output"),
@@ -42,7 +41,7 @@ def list(
 
 
 @app.command()
-def mac(
+def info(
     ctx: typer.Context,
     address: Annotated[
         str,
@@ -53,6 +52,7 @@ def mac(
         typer.Option("--path", "-p", help="Provide custom path to csv file"),
     ] = None,
 ):
+    """Returns info about your MAC address, defaults to the current MAC detected being in use"""
     # log: Logger = ctx.obj["LOG"]
     console: Console = ctx.obj["CONSOLE"]
 

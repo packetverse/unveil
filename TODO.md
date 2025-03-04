@@ -9,6 +9,11 @@
 - [ ] Add support for env vars to specify stuff like `CACHE_DIR` and so on.
 - [ ] Add custom config and file could be in toml, yaml or json format
 - [ ] Fix performance and concurrency issues in `ip` command
+- [ ] Add more global options:
+  - [ ] `--quiet`
+  - [ ] `--verbose`: needs to be improved
+  - [ ] `--version`
+  - [ ] `--config`: should be implemented for default options and a little more customization in output and so on
 
 # In progress
 

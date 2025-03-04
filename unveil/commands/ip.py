@@ -1,13 +1,13 @@
 import time
 import typer
+import asyncio
 
-from inspect import cleandoc
 from typing import Annotated, Optional
 from pydantic import ValidationError
 from json import dumps
 from rich.console import Console
-from rich.style import Style
 from rich.panel import Panel
+from rich.json import JSON
 
 from unveil.logger import Logger
 from unveil.ip import IPFetcher
@@ -39,7 +39,7 @@ def ip(
     fetcher = IPFetcher()
     try:
         log.info("trying to fetch data from all apis")
-        data = fetcher.fetch_from_all_apis()
+        data = asyncio.run(fetcher.fetch_all_sources())
     except ValidationError as e:
         log.error(e)
         console.print(f"[bold red]Validation Error:[/] {e}")
@@ -53,49 +53,34 @@ def ip(
 
     if raw:
         log.info("raw flag supplied")
-        log.info("getting first api fetched and returning just IP")
-        raw_ip = list(data.values())[0].ip if data else "No IP found"
-        log.info("printing to console")
+        raw_ip = next(iter(data.values())).ip if data else "No IP found"
         console.print(raw_ip)
-        log.info("done")
         raise typer.Exit()
+
     elif json:
         log.info("json flag supplied")
-        formatted_data = dumps(data, indent=4)
-        log.info("printing to console")
-        console.print(Panel(formatted_data, title="[bold green]JSON[/]"))
-        log.info("done")
+
+        json_data = {api: vars(info) for api, info in data.items()}
+        console.print(JSON(dumps(json_data, ensure_ascii=True, indent=4)))
         raise typer.Exit()
 
     log.info("no flags supplied")
     log.info("pretty printing to console...")
-    for api_name, ip_info in data.items():
-        q = Style(color="blue", bold=True)
-        strings = ""
+    for source, ip_info in data.items():
+        details = "\n".join(
+            f"[blue][.][/] {field}: {value}"
+            for field, value in vars(ip_info).items()
+            if value
+        )
+        console.print(Panel(details, title=f"[bold blue]{source}[/]"))
 
-        for field, value in vars(ip_info).items():
-            if value:
-                # field_name = config.field_aliases.get(field, field)
-                strings += f"[{q}][?][/] {field}: {value}\n"
-
-        formatted_data = cleandoc(strings)
-
-        console.print(Panel(formatted_data, title=f"[bold blue]{api_name}[/]"))
-        log.info("printed to console")
-
-    end_time = time.time()
-    log.info(f"End time: {end_time:.2f}")
-
-    total_time = end_time - start_time
-    num_apis = len(data)
-    log.info(f"Fetched data from {num_apis} APIs in {total_time:.2f}")
-    log.info("printing info to console")
+    duration = time.time() - start_time
+    log.info(f"Completed in {duration:.2f} seconds.")
     console.print(
         Panel(
-            f"[bold yellow][.][/] Fetched data from {num_apis} APIs in {total_time:.2f} seconds.",
+            f"[bold yellow][.][/] Fetched data from {len(data)} sources in {duration:.2f} seconds.",
             title="Results",
             title_align="left",
         )
     )
-    log.info("done")
     raise typer.Exit()

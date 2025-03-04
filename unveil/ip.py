@@ -9,69 +9,72 @@
 # https://ip-api.com/ - no auth - average 150ms response - 45 requests per minute
 # https://ipapi.co/ - no auth - average 200ms response - 30k requests per month / up-to 100 a day
 
-from typing import Dict, Optional
+import asyncio
 
-from pydantic import Field, model_validator
-from pydantic.dataclasses import dataclass
 from requests import get
-
-
-@dataclass
-class IPv4:
-    ip: str
-    aso: Optional[str] = None
-    asn: Optional[int] = None
-    continent: Optional[str] = None
-    cc: Optional[str] = Field(None, serialization_alias="country_code")
-    country: Optional[str] = None
-    city: Optional[str] = None
-    postal: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    timezone: Optional[str] = Field(None, serialization_alias="tz")
-    loc: Optional[str] = None
-    region: Optional[str] = None
-
-    @model_validator(mode="after")
-    def parse_location(self):
-        try:
-            loc = self.loc
-            if "," in loc:
-                lat, lon = loc.split(",")
-                self.latitude = lat
-                self.longitude = lon
-                del self.loc
-            return self
-        except Exception:
-            # should be logged implement later
-            # print(f"Error: {e}")
-            pass
+from typing import Optional
+from aiohttp import ClientSession, ClientTimeout
+from unveil.models.ip import IPv4
+from pydantic import ValidationError
 
 
 class IPFetcher:
-    def __init__(self):
-        self.apis = {
-            "Ident": "https://ident.me/json",
-            "Ipify": "https://api.ipify.org/?format=json",
-            "icanhazip": "https://icanhazip.com",
-            "IPinfo": "https://ipinfo.io/json",
-            "Country": "https://api.country.is",
-            "GeoJS": "https://get.geojs.io/v1/ip/geo.json",
-            "ipapi": "https://ipapi.co/json",
-            # "ip-api": "http://ip-api.com/json", # looks like they require api key now
+    API_ENDPOINTS = {
+        "Ident": "https://ident.me/json",
+        "Ipify": "https://api.ipify.org/?format=json",
+        "icanhazip": "https://icanhazip.com",
+        "IPinfo": "https://ipinfo.io/json",
+        "Country": "https://api.country.is",
+        "GeoJS": "https://get.geojs.io/v1/ip/geo.json",
+        "ipapi": "https://ipapi.co/json",
+        # "ip-api": "http://ip-api.com/json", # looks like they require api key now
+    }
+
+    async def fetch_ip_data(
+        self, session: ClientSession, name: str, url: str
+    ) -> Optional[IPv4]:
+        try:
+            async with session.get(url, timeout=ClientTimeout(total=5)) as response:
+                response.raise_for_status()
+                content_type = response.headers.get("Content-Type", "")
+
+                if "application/json" in content_type:
+                    data = await response.json()
+                else:
+                    data = {"ip": (await response.text()).strip()}
+
+                return IPv4(**data)
+        except ValidationError:
+            # log.error(f"Validation error for {name}: {e}")
+            return None
+        except Exception:
+            # log.error(f"Failed to fetch from {name}: {e}")
+            return None
+
+    async def fetch_all_sources(self) -> dict[str, IPv4]:
+        async with ClientSession() as session:
+            tasks = [
+                self.fetch_ip_data(session, name, url)
+                for name, url in self.API_ENDPOINTS.items()
+            ]
+            results = await asyncio.gather(*tasks)
+
+        return {
+            name: ip_info
+            for name, ip_info in zip(self.API_ENDPOINTS.keys(), results)
+            if ip_info
         }
 
-    def fetch_from_all_apis(self) -> Dict[str, IPv4]:
-        ip_data = {}
+        # ip_data = {}
 
-        for name, api_url in self.apis.items():
-            try:
-                ip_info = fetch_ipv4_info(api_url)
-                ip_data[name] = ip_info
-            except Exception as e:
-                print(f"Error fetching data from {api_url}: {e}")
+        # for name, api_url in self.apis.items():
+        #     try:
+        #         ip_info = fetch_ipv4_info(api_url)
+        #         ip_data[name] = ip_info
+        #     except Exception as e:
+        #         print(f"Error fetching data from {api_url}: {e}")
 
-        return ip_data
+        # return ip_data
 
 
 # add some logic to fetch from all services

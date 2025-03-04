@@ -12,6 +12,7 @@ from unveil.commands.mac import app as mac_app
 from unveil.commands.tor import app as tor_app
 from unveil.commands.validate import app as validate_app
 from unveil.logger import Logger
+from unveil import __version__
 
 app = typer.Typer(
     cls=AliasGroup,
@@ -70,10 +71,18 @@ def main(
             help="Prints ASCII art if specified to avoid cluttering terminal",
         ),
     ] = False,
+    version: Annotated[
+        Optional[bool], typer.Option("--version", "-V", help="Displays the version")
+    ] = False,
 ):
     ctx.ensure_object(dict)
     log = Logger(log_path)
     log.info(f"Command invoked: {ctx.invoked_subcommand}")
+
+    if version:
+        log.info(f"Version: {__version__}")
+        print(__version__)
+        raise typer.Exit()
 
     if banner:
         console.print(config.banner)
