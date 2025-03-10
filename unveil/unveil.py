@@ -1,9 +1,8 @@
-from typing import Annotated, Optional
-
 import typer
+
+from typing import Annotated, Optional
 from rich.console import Console
 
-from unveil import config
 from unveil.alias import AliasGroup
 from unveil.commands.blacklists import app as blacklists_app
 from unveil.commands.check import app as check_app
@@ -27,13 +26,15 @@ app.add_typer(mac_app, name="mac", no_args_is_help=True)
 app.add_typer(tor_app)
 app.add_typer(blacklists_app)
 
-console = Console()
+
+def version_callback(value: bool) -> None:
+    if value:
+        print(__version__)
+        raise typer.Exit()
 
 
-# find a better way to log and verbosity doesnt mean display logs really, means just display more detailed info
-# this definitely needs some working on so it can be implemented for each function
 @app.callback(invoke_without_command=True)
-def main(
+def callback(
     ctx: typer.Context,
     log_path: Annotated[
         Optional[str],
@@ -53,39 +54,44 @@ def main(
             help="Enables verbose output for all commands",
         ),
     ] = False,
-    output: Annotated[
-        Optional[str],
-        typer.Option(
-            "--output",
-            "-o",
-            help="Output contents to a text file",
-            show_default=False,
-            metavar="PATH",
-        ),
-    ] = None,
-    banner: Annotated[
+    quiet: Annotated[
         Optional[bool],
         typer.Option(
-            "--banner",
-            "-b",
-            help="Prints ASCII art if specified to avoid cluttering terminal",
+            "--quiet",
+            "-q",
+            envvar="UNVEIL_QUIET",
+            help="Ensures nothing is printed to the console",
         ),
     ] = False,
+    color: Annotated[
+        Optional[bool],
+        typer.Option(
+            "--color/--no-color",
+            envvar="UNVEIL_COLOR",
+            help="Control the use of color in output",
+            show_default=False,
+        ),
+    ] = True,
     version: Annotated[
-        Optional[bool], typer.Option("--version", "-V", help="Displays the version")
+        Optional[bool],
+        typer.Option(
+            "--version",
+            "-V",
+            callback=version_callback,
+            help="Displays the current version",
+        ),
     ] = False,
 ):
+    if quiet:
+        console = Console(quiet=True)
+    elif color:
+        console = Console()
+    elif not color:
+        console = Console(no_color=True)
+
     ctx.ensure_object(dict)
-    log = Logger(log_path)
+    log = Logger(log_path, verbose)
     log.info(f"Command invoked: {ctx.invoked_subcommand}")
-
-    if version:
-        log.info(f"Version: {__version__}")
-        print(__version__)
-        raise typer.Exit()
-
-    if banner:
-        console.print(config.banner)
 
     log.info("Flags specified (raw):")
     log.info(ctx.params)
@@ -98,9 +104,7 @@ def main(
         elif value is not None:
             log.info(f"--{param}={value}")
 
-    ctx.obj["BANNER"] = banner
     ctx.obj["CONSOLE"] = console
     ctx.obj["LOG_PATH"] = log_path
     ctx.obj["LOG"] = log
-    ctx.obj["OUTPUT"] = output
     ctx.obj["VERBOSE"] = verbose
