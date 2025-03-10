@@ -1,10 +1,9 @@
-import re
+from re import compile
+from typer.core import TyperGroup
 
-import typer
 
-
-class AliasGroup(typer.core.TyperGroup):
-    _CMD_SPLIT_P = re.compile(r", ?")
+class AliasGroup(TyperGroup):
+    _CMD_SPLIT_P = compile(r", ?")
 
     def get_command(self, ctx, cmd_name):
         cmd_name = self._group_cmd_name(cmd_name)
