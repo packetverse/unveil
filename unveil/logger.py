@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 
 
 class Logger(logging.Logger):
-    def __init__(self, log_dir: str) -> None:
+    def __init__(self, log_dir: str, verbose: bool) -> None:
         self.log_dir = log_dir or os.path.expanduser("~/.unveil")
 
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -13,7 +13,7 @@ class Logger(logging.Logger):
 
         os.makedirs(self.log_dir, exist_ok=True)
         self.log_path = os.path.join(self.log_dir, self.log_file)
-        log_level = logging.DEBUG
+        log_level = logging.DEBUG if verbose else logging.INFO
 
         self.logger = logging.getLogger("unveil")
         self.logger.setLevel(log_level)
